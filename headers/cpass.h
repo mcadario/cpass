@@ -12,7 +12,7 @@ typedef struct {
 
 // prototypes
 void toggle_xor(char *str);
-void save_password();
+void save_password(char *site, char *usr, char *pwd);
 void read_passwords();
 
 #include <stdio.h>
@@ -27,7 +27,7 @@ void toggle_xor(char *str) {
 }
 
 // saving pwd
-void save_password() {
+void save_password(char *s, char *u, char *p) {
     Credential c;
     FILE *file = fopen(FILENAME, "ab");
 
@@ -36,12 +36,18 @@ void save_password() {
         return;
     }
 
+    strncpy(c.site, s, sizeof(c.site) - 1);
+    strncpy(c.usr, u, sizeof(c.usr) - 1);
+    strncpy(c.pwd, p, sizeof(c.pwd) - 1);
+
+    /*
     printf("Enter Website: ");
     scanf("%s", c.site);
     printf("Enter Username: ");
     scanf("%s", c.usr);
     printf("Enter Password: ");
     scanf("%s", c.pwd);
+    */
 
     toggle_xor(c.pwd);
 
