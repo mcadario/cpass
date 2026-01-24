@@ -11,9 +11,11 @@ typedef struct {
 } Credential;
 
 // prototypes
+void print_usage(char *cmd);
 void toggle_xor(char *str);
 void save_pwd(char *site, char *usr, char *pwd);
 void read_pwd();
+int count_pwd();
 void find_pwd(char *site);
 
 void print_usage(char *cmd){
