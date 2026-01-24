@@ -1,6 +1,8 @@
-*.bin
+passwords.bin
 main
 tasks.json
+cpass
+master.key
 
 # Prerequisites
 *.d
