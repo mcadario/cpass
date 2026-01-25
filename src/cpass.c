@@ -27,12 +27,12 @@ void toggle_xor(char *str) {
 
 // saving pwd
 void save_pwd(char *s, char *u, char *p) {
-
+    /*
     size_t len = strlen(p);
     if (len <= 2 || p[0] != '\'' || p[len - 1] != '\'') {
         printf("Wrap your assword in single quotes.!\n");
         return;
-    }
+    }*/
 
     Credential c;
     FILE *file = fopen(FILENAME, "ab");
@@ -288,7 +288,7 @@ bool master_auth() {
     if (strcmp(stored_hex_hash, current_hex_hash) == 0) {
         return true; // they coincide
     } else {
-        //printf("Access Denied.\n");
+        printf("ERROR: wrong master pwd\n");
         return false;
     }
 }
