@@ -1,6 +1,19 @@
 # cpass (in development)
 As the name suggests it is a simple, lightweight C PASSword manager.
 
+## tool overview
+This is a simple password manager fully written in C, mainly realized for 
+educational purposes but still valid for daily use.
+
+It features argon2 hashing algorithm to store the master key to manage saved passwords,
+and AES to crypt and decrypt the password when saving/reading. AES uses a static salt
+which makes this tool unsuitable for multi-user environments, as a potential malicious person
+can unlock the second password.bin file once discovered the key for the first.
+
+algon2 algorithm is taken from [this site](https://github.com/LoupVaillant/Monocypher.git),
+while AES is taken from [that site](https://github.com/kokke/tiny-AES-c.git).
+
+
 ## Brief usage instructions
 As of now I am yet to implement an actual installation.
 If you want to use this tool you'll need to clone the repo and compile:
@@ -24,3 +37,7 @@ Running that executable with
 will give you all the information to use the tool.
 
 Have fun!
+
+## to be implemented
+- A `delete` command to delete entries, it should display a choice menu if more than one entry is found.
+- Implementing a proper installation to use the tool as the command `cpass`.
