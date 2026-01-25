@@ -1,7 +1,16 @@
 #include "cpass.h"
 #include "../lib/monocypher.h"
+#include "../lib/aes.h"
+
+#define CBC 1       // use cbc
+#define AES128 1    // 128b keys
 
 // implementations of cpass.h
+
+//the salt is hardcoded which doesn't make this program completely secure for multi-user environments.
+//but since this tool is thought to be single-user only, it should be ok i guess :)))
+uint8_t ENC_SALT[16] = { 'S','T','A','T','I','C','_','S','A','L','T','_','K','E','Y','!' };
+uint8_t SESSION_KEY[32]; // temp key for aes that exists in RAM only
 
 void print_usage(char *cmd){
     if (strcmp(cmd, "add")==0)
@@ -27,6 +36,8 @@ void toggle_xor(char *str) {
 
 // saving pwd
 void save_pwd(char *s, char *u, char *p) {
+    if (!master_auth()) return; 
+    
     /*
     size_t len = strlen(p);
     if (len <= 2 || p[0] != '\'' || p[len - 1] != '\'') {
@@ -45,7 +56,7 @@ void save_pwd(char *s, char *u, char *p) {
     // write in the file as a struct Credential instance
     strncpy(c.site, s, sizeof(c.site) - 1);
     strncpy(c.usr, u, sizeof(c.usr) - 1);
-    strncpy(c.pwd, p, sizeof(c.pwd) - 1);
+    //strncpy(c.pwd, p, sizeof(c.pwd) - 1);
 
     /*
     printf("Enter Website: ");
@@ -56,7 +67,9 @@ void save_pwd(char *s, char *u, char *p) {
     scanf("%s", c.pwd);
     */
 
-    toggle_xor(c.pwd);
+    //toggle_xor(c.pwd);
+
+    encrypt_entry(&c, p);
 
     fwrite(&c, sizeof(Credential), 1, file);
     fclose(file);
@@ -93,10 +106,12 @@ void read_pwd() {
         return;
     }
 
+    char decpwd[64];
+
     printf("\n--- SAVED PASSWORDS (%d) ---\n", count_pwd());
     while (fread(&c /* assign output to our temp var */, sizeof(Credential), 1, file)) {
-        toggle_xor(c.pwd);
-        printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, c.pwd);
+        decrypt_entry(&c, decpwd);
+        printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
     }
     printf("-----------------------\n");
     fclose(file);
@@ -163,14 +178,13 @@ void find_pwd(char *site) {
 
     Credential c;
     int count_found = 0;
-
-
+    char decpwd[64];
     while (fread(&c, sizeof(Credential), 1, file)) {
         if (strcmp(c.site, site) == 0) {
             count_found++;
             if (count_found==1) printf("\n--- RESULTS FOR %s ---\n", site);
-            toggle_xor(c.pwd); 
-            printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, c.pwd);
+            decrypt_entry(&c, decpwd);
+            printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
         }
     }
 
@@ -191,9 +205,8 @@ void to_hex(uint8_t *bytes, char *hex_str, int len) {
     hex_str[len * 2] = '\0';
 }
 
-// hash with argon2, output will be in output_hex
-void compute_argon2(char *password, uint8_t *salt, char *output_hex) {
-    uint8_t hash[HASH_SIZE];
+// hash with argon2, output will be in output (raw bytes now)
+void compute_argon2(char *password, uint8_t *salt, uint8_t *output) {
     
     // allocate work area
     void *work_area = malloc(1024 * 1024);
@@ -220,17 +233,20 @@ void compute_argon2(char *password, uint8_t *salt, char *output_hex) {
     crypto_argon2_extras extras = {0}; // No extra data/keys needed
 
     // actually compute argon2
-    crypto_argon2(hash, HASH_SIZE, work_area, config, inputs, extras);
+    // We output to the buffer directly (HASH_SIZE = 32)
+    crypto_argon2(output, HASH_SIZE, work_area, config, inputs, extras);
 
     free(work_area);
     
     // convert to hex and store in output_key
-    to_hex(hash, output_hex, HASH_SIZE);
+    // Removed to_hex here to allow raw byte output for AES key
 }
 
 void trim(char *str) {
     str[strcspn(str, "\n")] = 0;
 }
+
+//char enc_hex[HEX_HASH_SIZE];
 
 //uses argon2
 bool master_auth() {
@@ -238,6 +254,7 @@ bool master_auth() {
     char input[100];
     char stored_hex_hash[HEX_HASH_SIZE];
     uint8_t salt[SALT_SIZE];
+    uint8_t raw_hash[HASH_SIZE]; // temp buffer for raw bytes
 
     // if first run create new master key
     if (f == NULL) {
@@ -251,7 +268,8 @@ bool master_auth() {
 
         // compute hash
         char hex_hash[HEX_HASH_SIZE];
-        compute_argon2(input, salt, hex_hash);
+        compute_argon2(input, salt, raw_hash);
+        to_hex(raw_hash, hex_hash, HASH_SIZE);
 
         // save salt+hash, we'll need both later
         f = fopen(MASTER_FILE, "wb");
@@ -280,15 +298,67 @@ bool master_auth() {
     if (!fgets(input, sizeof(input), stdin)) return 0;
     trim(input);
 
+    //compute key for aes
+    //uses the hardcoded ENC_SALT and writes raw bytes to SESSION_KEY
+    compute_argon2(input, ENC_SALT, SESSION_KEY);
+
     // 3. re-compute hash
     char current_hex_hash[HEX_HASH_SIZE];
-    compute_argon2(input, salt, current_hex_hash);
+    compute_argon2(input, salt, raw_hash);
+    to_hex(raw_hash, current_hex_hash, HASH_SIZE);
 
     // 4. compare the two hashes
     if (strcmp(stored_hex_hash, current_hex_hash) == 0) {
         return true; // they coincide
     } else {
         printf("ERROR: wrong master pwd\n");
+        memset(SESSION_KEY, 0, 32); // wipe key
         return false;
     }
+}
+
+void generate_iv(uint8_t *iv) {
+    // random iv bytes
+    for(int i=0; i<16; i++) iv[i] = rand() % 256; 
+}
+
+
+void encrypt_entry(Credential *c, char *plain_text) {
+    struct AES_ctx ctx;
+    
+    //save len to cut off padding later
+    c->len = strlen(plain_text);
+
+    // clear buffer and copy pwd
+    memset(c->pwd, 0, 64); //set 64B of c->pwd to 0
+    strcpy((char*)c->pwd, plain_text);
+
+    // generate random iv
+    generate_iv(c->iv);//used to init
+
+    // encrypt
+    // here we are using the SESSION_KEY generated during auth
+    AES_init_ctx_iv(&ctx, SESSION_KEY, c->iv);
+    
+    // AES_CBC_encrypt_buffer overwrites c->pwd with encrypted
+    AES_CBC_encrypt_buffer(&ctx, c->pwd, 64);
+}
+
+void decrypt_entry(Credential *c, char *output_buffer) {
+    struct AES_ctx ctx;
+
+    // init with master key and specific iv
+    // we use the SESSION_KEY from RAM
+    AES_init_ctx_iv(&ctx, SESSION_KEY, c->iv);
+
+    // decrypt c->pwd into temp
+    // copy it to a temp buffer so we don't modify the struct permanently
+    uint8_t temp[64];
+    memcpy(temp, c->pwd, 64);
+    
+    AES_CBC_decrypt_buffer(&ctx, temp, 64);
+
+    // cutoff padding zeros
+    memcpy(output_buffer, temp, c->len);
+    output_buffer[c->len] = '\0'; //null terminate
 }

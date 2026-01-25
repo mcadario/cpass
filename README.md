@@ -5,7 +5,7 @@ As the name suggests it is a simple, lightweight C PASSword manager.
 As of now I am yet to implement an actual installation.
 If you want to use this tool you'll need to clone the repo and compile:
 
-    gcc ./src/main.c ./src/cpass.c ./lib/monocypher.c  -o cpass
+    gcc ./src/main.c ./src/cpass.c ./lib/monocypher.c ./lib/aes.c -o cpass
 
 Then you will have a cpass executable
 

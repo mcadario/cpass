@@ -3,7 +3,7 @@
 
 //the following constants are used in cpass.c, they are declared here for general order
 #define FILENAME "passwords.bin" //path of password file
-#define KEY 0xF //weak key for XOR
+#define KEY 0xF //weak key for XOR, kept for legacy toggle_xor1
 #define MASTER_FILE "master.key" //path of master key file
 #define SALT_SIZE 16
 #define HASH_SIZE 32
@@ -13,11 +13,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
     char site[50];
     char usr[50];
-    char pwd[50];
+
+    //aes requirements
+    uint8_t pwd[64];
+    uint8_t iv[16];
+    uint8_t len;
+
 } Credential;
 
 // prototypes
@@ -70,12 +76,30 @@ bool master_auth();
 master_auth
 Function to hash the master key if it is being created,
 or to compare to hashed stored if the master.key file already there.
-Uses argon2 Monocypher implementation: https://github.com/LoupVaillant/Monocypher.git
+>> Uses argon2 Monocypher implementation: https://github.com/LoupVaillant/Monocypher.git
 (did not copy the whole repo but just monocypher.c and monocypher.h in /src)
 ------------------------*/
 
+void generate_iv(uint8_t *iv);
+/*
+generate_iv
+Helper function to generate random iv for aes
+------------------------*/
+
+void encrypt_entry(Credential *c, char *plain_text);
+void decrypt_entry(Credential *c, char *output_buffer);
+/*
+encrypt_entry
+decrypt_entry
+uses argon2 with hardcoded static salt to generate the aes key
+the key is saved in SESSION_KEY that exists only in RAM, once the program exit it is not stored
+>> Uses tiny-AES-c: https://github.com/kokke/tiny-AES-c.git
+(did not copy the whole repo but just aes.c and aes.h)
+------------------------*/
+
+
 /* TO BE IMPLEMENTED:
-    - stronger encryption with AES instead of xor
+    DON - stronger encryption with AES instead of xor
     DONE - search password with algv[0] = "find"
     DONE - support for special char
     - <delete> command, if more than one pwd then display a menu (1.usr1 \n 2.usr2, ...)
@@ -84,4 +108,4 @@ Uses argon2 Monocypher implementation: https://github.com/LoupVaillant/Monocyphe
 
 */
 
-#endif
+#endif // CPASS_H
