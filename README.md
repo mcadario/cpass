@@ -41,7 +41,7 @@ will give you all the information to use the tool.
 Have fun!
 
 ## to be implemented
-- Memory locking with memlock()
+- Memory locking with mlock()
 - Implement a non static salt
 - Vacuum function to definitely remove all "tombstoned" entries
 - Implementing a proper installation to use the tool as the command `cpass`.
