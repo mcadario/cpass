@@ -1,5 +1,5 @@
 # cpass (in development)
-As the name suggests it is a simple, lightweight C PASSword manager.
+As the name suggests it is a simple, lightweight C PASSword manager. Works only on unix-lke platforms.
 
 ## tool overview
 This is a simple password manager fully written in C, mainly realized for 
@@ -41,4 +41,7 @@ will give you all the information to use the tool.
 Have fun!
 
 ## to be implemented
+- Memory locking with memlock()
+- Implement a non static salt
+- Vacuum function to definitely remove all "tombstoned" entries
 - Implementing a proper installation to use the tool as the command `cpass`.
