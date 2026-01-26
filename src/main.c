@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
     //printf("\n1. Add Password\n2. View Passwords\n3. Exit\nChoice: ");
     //scanf("%d", &choice);
     if(argc < 2) {
-        printf("Commands:\n - add\n - list\n - find\n");
+        print_usage("");
         return 0;
     }
 
@@ -31,7 +31,13 @@ int main(int argc, char* argv[]) {
             print_usage(argv[1]);
             return 1;
         }
-        find_pwd(argv[2]);
+        find_pwd(argv[2], true);
+    } else if (strcmp(argv[1], "delete")==0) {
+        if (argc != 3){
+            print_usage(argv[1]);
+            return 1;
+        }
+        del_pwd(argv[2]);
     } else {
         print_usage(""); //call it with empty str so that it will fall in the else case
     }

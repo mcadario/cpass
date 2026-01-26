@@ -3,7 +3,7 @@
 #include "../lib/aes.h"
 
 #define CBC 1       // use cbc
-#define AES128 1    // 128b keys
+#define AES256 1    // 256b keys
 
 // implementations of cpass.h
 
@@ -19,11 +19,14 @@ void print_usage(char *cmd){
         printf("Usage: cpass list [no parameters[] \n");
     else if (strcmp(cmd, "find")==0)
         printf("Usage: cpass find <site> \n");
+    else if (strcmp(cmd, "delete")==0)
+        printf("Usage: cpass delete <site> \n");
     else {
         printf("\n -- COMMANDS --\n");
         print_usage("add");
         print_usage("list");
         print_usage("find");
+        print_usage("delete");
     }
 }
 
@@ -34,19 +37,45 @@ void toggle_xor(char *str) {
     }
 }
 
+void get_path(char *filename, char *output_buffer) {
+    const char *home_dir = getenv("HOME");
+    if (!home_dir) {
+        // if HOME isn't set
+        strcpy(output_buffer, filename); 
+        return;
+    }
+
+    // set folder path
+    char folder_path[256];
+    sprintf(folder_path, "%s/.cpass", home_dir);
+
+    // create folder if isn't set
+    struct stat st = {0};
+    if (stat(folder_path, &st) == -1) {
+        mkdir(folder_path, 0700);// drwx permissions
+    }
+
+    // final path, output in output_buffer
+    sprintf(output_buffer, "%s/%s", folder_path, filename);
+}
+
+
 // saving pwd
 void save_pwd(char *s, char *u, char *p) {
     if (!master_auth()) return; 
     
-    /*
+    // strip quotes
+    char *plain_pwd = p;
     size_t len = strlen(p);
-    if (len <= 2 || p[0] != '\'' || p[len - 1] != '\'') {
-        printf("Wrap your assword in single quotes.!\n");
-        return;
-    }*/
+    if (len >= 2 && p[0] == '\'' && p[len - 1] == '\'') {
+        p[len - 1] = '\0'; // null terminate
+        plain_pwd = p + 1; // skip first quote
+    }
 
     Credential c;
-    FILE *file = fopen(FILENAME, "ab");
+    char path[256];
+    get_path(FILENAME, path);
+    FILE *file = fopen(path, "ab");
 
     if (file == NULL) {
         printf("Error opening file!\n");
@@ -69,7 +98,7 @@ void save_pwd(char *s, char *u, char *p) {
 
     //toggle_xor(c.pwd);
 
-    encrypt_entry(&c, p);
+    encrypt_entry(&c, plain_pwd);
 
     fwrite(&c, sizeof(Credential), 1, file);
     fclose(file);
@@ -77,7 +106,9 @@ void save_pwd(char *s, char *u, char *p) {
 }
 
 int count_pwd() {
-    FILE *file = fopen("passwords.bin", "rb");
+    char path[256];
+    get_path(FILENAME, path);
+    FILE *file = fopen(path, "rb");
     if (file == NULL) return 0;
 
     fseek(file, 0, SEEK_END); // move to the end, SEEK_END is defined in stdio.h
@@ -93,7 +124,10 @@ void read_pwd() {
     if(!master_auth()) return; // authentication
 
     Credential c;
-    FILE *file = fopen(FILENAME, "rb");
+    
+    char path[256];
+    get_path(FILENAME, path);
+    FILE *file = fopen(path, "rb");
 
     if (file == NULL) {
         printf("No passwords found yet.\n");
@@ -167,13 +201,16 @@ void find_pwd(char *site){
 }
 */
 
-void find_pwd(char *site) {
-    if (!master_auth()) return; 
+int find_pwd(char *site, bool verbose) {
+    if (!master_auth()) return 0; 
 
-    FILE *file = fopen(FILENAME, "rb");
+    
+    char path[256];
+    get_path(FILENAME, path);
+    FILE *file = fopen(path, "rb");
     if (file == NULL) {
         printf("No passwords found yet.\n");
-        return;
+        return 0;
     }
 
     Credential c;
@@ -182,16 +219,87 @@ void find_pwd(char *site) {
     while (fread(&c, sizeof(Credential), 1, file)) {
         if (strcmp(c.site, site) == 0) {
             count_found++;
-            if (count_found==1) printf("\n--- RESULTS FOR %s ---\n", site);
-            decrypt_entry(&c, decpwd);
-            printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
+            if(verbose){
+                if (count_found==1) printf("\n--- RESULTS FOR %s ---\n", site);
+                decrypt_entry(&c, decpwd);
+                printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
+            }
         }
     }
 
     if (count_found == 0) {
-        printf("No passwords found for %s\n", site);
+        printf("ERROR: No passwords found for %s\n", site);
     } else {
         printf("Total found: %d\n", count_found);
+    }
+
+    fclose(file);
+    return count_found;
+}
+
+// helper to get full path: ~/.cpass/filename,
+// with this function you can execute from every location an still saves in HOME/.cpass/
+
+void del_pwd(char *site) {
+    int count = find_pwd(site, true); // This prints the list automatically!
+
+    if (count == 0) {printf("ERROR: no password found for %s", site); return;} // nothing to delete
+
+    char target_user[50];
+    
+    // choose which one to delete
+    if (count > 1) {
+        printf("\nMore than one entry found,\n enter the USERNAME to delete: ");
+        if (!fgets(target_user, sizeof(target_user), stdin)) return;
+        trim(target_user);
+    } else {
+        // If only 1 exists, don't need to ask for the username, 
+        // but still set it to empty for next comparisons
+        target_user[0] = '\0'; 
+    }
+
+    // open file in rb+ (read and write)
+    char path[256];
+    get_path(FILENAME, path);
+    FILE *file = fopen(path, "rb+"); 
+    
+    Credential c;
+    bool deleted = false;
+
+    while (fread(&c, sizeof(Credential), 1, file)) {
+        // skip deleted ones
+        if (c.del == 1) continue;
+
+        // site match
+        if (strcmp(c.site, site) == 0) {
+            
+            // username match
+            if (count > 1 && strcmp(c.usr, target_user) != 0) {
+                continue; //if its not the targeted user
+            }
+
+            //found target
+            c.del = 1;
+
+            /* wipe password for security
+            memset(c.pwd, 0, 64);
+            memset(c.iv, 0, 16);
+            */
+
+            // move cursore back one entry
+            fseek(file, -sizeof(Credential), SEEK_CUR);
+
+            //overwrite
+            fwrite(&c, sizeof(Credential), 1, file);
+            
+            printf("deleted entry for site: %s, user: %s\n", c.site, c.usr);
+            deleted = true;
+            break; // Stop after deleting one
+        }
+    }
+
+    if (!deleted && count > 1) {
+        printf("ERROR: user '%s' not found for site '%s'.\n", target_user, site);
     }
 
     fclose(file);
@@ -250,7 +358,9 @@ void trim(char *str) {
 
 //uses argon2
 bool master_auth() {
-    FILE *f = fopen(MASTER_FILE, "rb"); // open in binary mode
+    char path[256];
+    get_path(MASTER_FILE, path);
+    FILE *f = fopen(path, "rb"); // open in binary mode
     char input[100];
     char stored_hex_hash[HEX_HASH_SIZE];
     uint8_t salt[SALT_SIZE];
@@ -272,7 +382,7 @@ bool master_auth() {
         to_hex(raw_hash, hex_hash, HASH_SIZE);
 
         // save salt+hash, we'll need both later
-        f = fopen(MASTER_FILE, "wb");
+        f = fopen(path, "wb");
         fwrite(salt, 1, SALT_SIZE, f);
         fwrite(hex_hash, 1, HEX_HASH_SIZE, f); 
         fclose(f);

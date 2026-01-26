@@ -14,8 +14,11 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 typedef struct {
+    bool del; // true if deleted, tombstoning
     char site[50];
     char usr[50];
 
@@ -64,12 +67,17 @@ read_pwd
 Simply prints password while the eof.
 ------------------------*/
 
-void find_pwd(char *site);
+int find_pwd(char *site, bool verbose);
 /*
 find_pwd
 Finds all the stored passwords of the input site.
 It is a simple while cycle that prints password till eof.
+
+if verbose is false, it doesnt print anything and just return the number of found pwds, 
+otherwise prints and returns
 ------------------------*/
+
+void del_pwd(char *site);
 
 bool master_auth(); 
 /*
@@ -86,6 +94,7 @@ generate_iv
 Helper function to generate random iv for aes
 ------------------------*/
 
+void trim(char *str);
 void encrypt_entry(Credential *c, char *plain_text);
 void decrypt_entry(Credential *c, char *output_buffer);
 /*

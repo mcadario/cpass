@@ -13,6 +13,8 @@ can unlock the second password.bin file once discovered the key for the first.
 algon2 algorithm is taken from [this site](https://github.com/LoupVaillant/Monocypher.git),
 while AES is taken from [that site](https://github.com/kokke/tiny-AES-c.git).
 
+All passwords and the master key are saved in HOME/.cpass/ that is created when the master key is created with the function 'get_path'.
+
 
 ## Brief usage instructions
 As of now I am yet to implement an actual installation.
@@ -39,5 +41,4 @@ will give you all the information to use the tool.
 Have fun!
 
 ## to be implemented
-- A `delete` command to delete entries, it should display a choice menu if more than one entry is found.
 - Implementing a proper installation to use the tool as the command `cpass`.
