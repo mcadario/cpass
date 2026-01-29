@@ -110,6 +110,26 @@ int count_pwd() {
     get_path(FILENAME, path);
     FILE *file = fopen(path, "rb");
     if (file == NULL) return 0;
+    
+    Credential c;
+    int count = 0;
+    
+    while (fread(&c, sizeof(Credential), 1, file)) {
+        if (!c.del) {  //only count if not del
+            count++;
+        }
+    }
+    
+    fclose(file);
+    return count;
+}
+
+//counts all pwds also the deleted ones
+int count_pwd_all(){
+    char path[256];
+    get_path(FILENAME, path);
+    FILE *file = fopen(path, "rb");
+    if (file == NULL) return 0;
 
     fseek(file, 0, SEEK_END); // move to the end, SEEK_END is defined in stdio.h
     long total_bytes = ftell(file); // get position in bytes
@@ -145,7 +165,9 @@ void read_pwd() {
     printf("\n--- SAVED PASSWORDS (%d) ---\n", count_pwd());
     while (fread(&c /* assign output to our temp var */, sizeof(Credential), 1, file)) {
         decrypt_entry(&c, decpwd);
-        printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
+
+        if(!c.del)
+            printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
     }
     printf("-----------------------\n");
     fclose(file);
@@ -204,7 +226,6 @@ void find_pwd(char *site){
 int find_pwd(char *site, bool verbose) {
     if (!master_auth()) return 0; 
 
-    
     char path[256];
     get_path(FILENAME, path);
     FILE *file = fopen(path, "rb");
@@ -217,7 +238,7 @@ int find_pwd(char *site, bool verbose) {
     int count_found = 0;
     char decpwd[64];
     while (fread(&c, sizeof(Credential), 1, file)) {
-        if (strcmp(c.site, site) == 0) {
+        if (strcmp(c.site, site) == 0 && !c.del) {
             count_found++;
             if(verbose){
                 if (count_found==1) printf("\n--- RESULTS FOR %s ---\n", site);
@@ -241,7 +262,7 @@ int find_pwd(char *site, bool verbose) {
 // with this function you can execute from every location an still saves in HOME/.cpass/
 
 void del_pwd(char *site) {
-    int count = find_pwd(site, true); // This prints the list automatically!
+    int count = find_pwd(site, true); // find pwd and print pwd
 
     if (count == 0) {printf("ERROR: no password found for %s", site); return;} // nothing to delete
 
@@ -268,18 +289,18 @@ void del_pwd(char *site) {
 
     while (fread(&c, sizeof(Credential), 1, file)) {
         // skip deleted ones
-        if (c.del == 1) continue;
+        if (c.del == true) continue;
 
         // site match
         if (strcmp(c.site, site) == 0) {
             
             // username match
-            if (count > 1 && strcmp(c.usr, target_user) != 0) {
+            if (strcmp(c.usr, target_user) != 0) {
                 continue; //if its not the targeted user
             }
 
             //found target
-            c.del = 1;
+            c.del = true;
 
             /* wipe password for security
             memset(c.pwd, 0, 64);
