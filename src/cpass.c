@@ -248,11 +248,12 @@ int find_pwd(char *site, bool verbose) {
         }
     }
 
-    if (count_found == 0) {
-        printf("ERROR: No passwords found for %s\n", site);
-    } else {
-        printf("Total found: %d\n", count_found);
-    }
+    if(verbose)
+        if (count_found == 0) {
+            printf("ERROR: No passwords found for %s\n", site);
+        } else {
+            printf("Total found: %d\n", count_found);
+        }
 
     fclose(file);
     return count_found;
@@ -387,6 +388,8 @@ bool master_auth() {
     uint8_t salt[SALT_SIZE];
     uint8_t raw_hash[HASH_SIZE]; // temp buffer for raw bytes
 
+    srand(time(NULL)); //seed random generator
+
     // if first run create new master key
     if (f == NULL) {
         printf("CREATE MASTER KEY:\n");
@@ -409,8 +412,9 @@ bool master_auth() {
         fclose(f);
 
         printf("Master Password Set!\n");
+        memset(input, 0, sizeof(input));
         print_usage("");
-        return 0;
+        return true;
     }
 
     //normal login
@@ -459,6 +463,7 @@ void encrypt_entry(Credential *c, char *plain_text) {
     
     //save len to cut off padding later
     c->len = strlen(plain_text);
+    c->del = false;
 
     // clear buffer and copy pwd
     memset(c->pwd, 0, 64); //set 64B of c->pwd to 0
