@@ -10,8 +10,8 @@ and AES to crypt and decrypt the password when saving/reading. AES uses a static
 which makes this tool unsuitable for multi-user environments, as a potential malicious person
 can unlock the second password.bin file once discovered the key for the first.
 
-algon2 algorithm is taken from [this site](https://github.com/LoupVaillant/Monocypher.git),
-while AES is taken from [that site](https://github.com/kokke/tiny-AES-c.git).
+algon2 algorithm is taken from [this repo](https://github.com/LoupVaillant/Monocypher.git),
+while AES is taken from [that repo](https://github.com/kokke/tiny-AES-c.git).
 
 All passwords and the master key are saved in HOME/.cpass/ that is created when the master key is created with the function 'get_path'.
 
@@ -19,7 +19,7 @@ All passwords and the master key are saved in HOME/.cpass/ that is created when 
 
 Prerequisites:
 - gcc compiler
-- make (not optional)
+- make (there is a shell script otherwise)
 - works only on linux systems
 
 
