@@ -32,12 +32,12 @@ Clone the repo:
 
 Install:
 
-    make
+    sudo make
     sudo make install
 
 You should get the following outputs:
 
-    $ make
+    $ sudo make
     Build complete! Binary: ./cpass
 
     $ sudo make install
