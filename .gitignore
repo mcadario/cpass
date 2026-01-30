@@ -1,8 +1,9 @@
 passwords.bin
 main
-tasks.json
+*.json
 cpass
 master.key
+./build
 
 # Prerequisites
 *.d

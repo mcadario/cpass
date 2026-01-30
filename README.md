@@ -15,10 +15,66 @@ while AES is taken from [that site](https://github.com/kokke/tiny-AES-c.git).
 
 All passwords and the master key are saved in HOME/.cpass/ that is created when the master key is created with the function 'get_path'.
 
+## Prerequisites:
 
-## Brief usage instructions
-As of now I am yet to implement an actual installation.
-If you want to use this tool you'll need to clone the repo and compile:
+Prerequisites:
+- gcc compiler
+- make (not optional)
+- works only on linux systems
+
+
+## Installation with make
+
+Clone the repo:
+
+    git clone https://github.com/mcadario/cpass.git
+    cd cpass
+
+Install:
+
+    make
+    sudo make install
+
+You should get the following outputs:
+
+    $ make
+    Build complete! Binary: ./cpass
+
+    $ sudo make install
+    Installing cpass to /usr/local/bin...
+    Installation complete!
+    You can now use 'cpass' from anywhere.
+
+Then verify installation (you can run this globally):
+
+    cpass
+
+If you get
+
+     -- COMMANDS --
+    Usage: cpass add <site> <username> <password>
+    Usage: cpass list [no parameters] 
+    Usage: cpass find <site> 
+    Usage: cpass delete <site> 
+    mic@fedora:~$ ls
+
+then you are good to go!!!
+
+## Installation with install script
+
+Clone the repo:
+
+    git clone https://github.com/mcadario/cpass.git
+    cd cpass
+
+Install using the script:
+
+    sudo ./install.sh
+
+You will get a bunch of informative output saying what the script is doing, if nothing is red or yellow you are done! Try to run it globally!
+
+## manual compilation (works only in cloned repo directory)
+Clone the repo and compile:
 
     gcc ./src/main.c ./src/cpass.c ./lib/monocypher.c ./lib/aes.c -o cpass
 
@@ -40,8 +96,18 @@ will give you all the information to use the tool.
 
 Have fun!
 
+## uninstalling 
+If you really really want to uninstall...
+
+    make uninstall 
+
+or 
+
+    ./install.sh --uninstall
+
+depending if you installed with make (1) or with the shell script (2).
+
 ## to be implemented
 - Memory locking with mlock()
 - Implement a non static salt
 - Vacuum function to definitely remove all "tombstoned" entries
-- Implementing a proper installation to use the tool as the command `cpass`.

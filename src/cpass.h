@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 
 typedef struct {
     bool del; // true if deleted, tombstoning
@@ -55,10 +56,17 @@ Passwords are saved in a file "passwords.bin" as a struct of type Credential.
 int count_pwd();
 /*
 count_pwd
+counts with a for cycle the number of pwds,
+filters out pwds with c.del true
+------------------------*/
+
+int count_pwd_all();
+/*
+count_pwd_all
 Little helper function used to count the number of pwd in the file.
 Count the number of bytes by subtracting ftell(file) (at this stage file is the pointer to the first element in the file)
 to fseek(SEEK_END), then divides by sizeof(Credential) to get the number of entries.
-Is used in read_pwd and find_pwd
+COUNTS ALSO DELETE PWDS as it doesn't check c.del
 ------------------------*/
 
 void read_pwd();
@@ -105,16 +113,5 @@ the key is saved in SESSION_KEY that exists only in RAM, once the program exit i
 >> Uses tiny-AES-c: https://github.com/kokke/tiny-AES-c.git
 (did not copy the whole repo but just aes.c and aes.h)
 ------------------------*/
-
-
-/* TO BE IMPLEMENTED:
-    DON - stronger encryption with AES instead of xor
-    DONE - search password with algv[0] = "find"
-    DONE - support for special char
-    - <delete> command, if more than one pwd then display a menu (1.usr1 \n 2.usr2, ...)
-    DONE - master password when listing/finding with bcrypt
-    - Makefile installation
-
-*/
 
 #endif // CPASS_H

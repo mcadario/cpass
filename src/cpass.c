@@ -22,7 +22,7 @@ void print_usage(char *cmd){
     else if (strcmp(cmd, "delete")==0)
         printf("Usage: cpass delete <site> \n");
     else {
-        printf("\n -- COMMANDS --\n");
+        printf(" -- COMMANDS --\n");
         print_usage("add");
         print_usage("list");
         print_usage("find");
@@ -115,9 +115,7 @@ int count_pwd() {
     int count = 0;
     
     while (fread(&c, sizeof(Credential), 1, file)) {
-        if (!c.del) {  //only count if not del
-            count++;
-        }
+        if (!c.del) count++; //only count if not del   
     }
     
     fclose(file);
@@ -224,13 +222,13 @@ void find_pwd(char *site){
 */
 
 int find_pwd(char *site, bool verbose) {
-    if (!master_auth()) return 0; 
+    if (!master_auth()) return -1; 
 
     char path[256];
     get_path(FILENAME, path);
     FILE *file = fopen(path, "rb");
     if (file == NULL) {
-        printf("No passwords found yet.\n");
+        printf("File not found.\n");
         return 0;
     }
 
