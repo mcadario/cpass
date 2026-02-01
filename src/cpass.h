@@ -69,13 +69,15 @@ to fseek(SEEK_END), then divides by sizeof(Credential) to get the number of entr
 COUNTS ALSO DELETE PWDS as it doesn't check c.del
 ------------------------*/
 
-void read_pwd();
+void read_pwd(bool check_del);
 /*
 read_pwd
 Simply prints password while the eof.
+
+if check_del is true the function prints only deleted ones and returns the number of deletd
 ------------------------*/
 
-int find_pwd(char *site, bool verbose);
+int find_pwd(char *site, bool verbose, bool check_del);
 /*
 find_pwd
 Finds all the stored passwords of the input site.
@@ -83,6 +85,8 @@ It is a simple while cycle that prints password till eof.
 
 if verbose is false, it doesnt print anything and just return the number of found pwds, 
 otherwise prints and returns
+
+if check_del is true the function prints only deleted ones and returns the number of deletd
 ------------------------*/
 
 void del_pwd(char *site);

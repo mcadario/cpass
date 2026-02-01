@@ -21,6 +21,8 @@ void print_usage(char *cmd){
         printf("Usage: cpass find <site> \n");
     else if (strcmp(cmd, "delete")==0)
         printf("Usage: cpass delete <site> \n");
+    else if (strcmp(cmd, "bin")==0)
+        printf("Usage: cpass bin \n");
     else {
         printf(" -- COMMANDS --\n");
         print_usage("add");
@@ -138,7 +140,7 @@ int count_pwd_all(){
 }
 
 // reading pwds
-void read_pwd() {
+void read_pwd(bool check_del) { // if check del is true it prints DELETED ONES
     if(!master_auth()) return; // authentication
 
     Credential c;
@@ -160,11 +162,13 @@ void read_pwd() {
 
     char decpwd[64];
 
-    printf("\n--- SAVED PASSWORDS (%d) ---\n", count_pwd());
+    if (check_del) printf("\n--- DELETED PASSWORDS (%d) ---\n", count_pwd_all()-count_pwd());
+    else printf("\n--- SAVED PASSWORDS (%d) ---\n", count_pwd());
+
     while (fread(&c /* assign output to our temp var */, sizeof(Credential), 1, file)) {
         decrypt_entry(&c, decpwd);
 
-        if(!c.del)
+        if(c.del==check_del)
             printf("Site: %s | User: %s | Pass: %s\n", c.site, c.usr, decpwd);
     }
     printf("-----------------------\n");
@@ -221,7 +225,7 @@ void find_pwd(char *site){
 }
 */
 
-int find_pwd(char *site, bool verbose) {
+int find_pwd(char *site, bool verbose, bool check_del) { // if check del is true it prints DELETED ONES
     if (!master_auth()) return -1; 
 
     char path[256];
@@ -236,7 +240,7 @@ int find_pwd(char *site, bool verbose) {
     int count_found = 0;
     char decpwd[64];
     while (fread(&c, sizeof(Credential), 1, file)) {
-        if (strcmp(c.site, site) == 0 && !c.del) {
+        if (strcmp(c.site, site) == 0 && c.del==check_del) {
             count_found++;
             if(verbose){
                 if (count_found==1) printf("\n--- RESULTS FOR %s ---\n", site);
@@ -261,7 +265,7 @@ int find_pwd(char *site, bool verbose) {
 // with this function you can execute from every location an still saves in HOME/.cpass/
 
 void del_pwd(char *site) {
-    int count = find_pwd(site, true); // find pwd and print pwd
+    int count = find_pwd(site, true, false); // find pwd and print pwd
 
     if (count == 0) {printf("ERROR: no password found for %s", site); return;} // nothing to delete
 
@@ -273,9 +277,8 @@ void del_pwd(char *site) {
         if (!fgets(target_user, sizeof(target_user), stdin)) return;
         trim(target_user);
     } else {
-        // If only 1 exists, don't need to ask for the username, 
-        // but still set it to empty for next comparisons
-        target_user[0] = '\0'; 
+        // If only 1 exists, don't need to ask for the username 
+        strcpy(target_user, site);
     }
 
     // open file in rb+ (read and write)
@@ -293,28 +296,26 @@ void del_pwd(char *site) {
         // site match
         if (strcmp(c.site, site) == 0) {
             
-            // username match
-            if (strcmp(c.usr, target_user) != 0) {
-                continue; //if its not the targeted user
-            }
+            // username match (or site match if 1 found before)
+            if (strcmp(c.usr, target_user)==0 || strcmp(c.site, target_user)==0) {
+                //found target
+                c.del = true;
 
-            //found target
-            c.del = true;
+                /* wipe password for security
+                memset(c.pwd, 0, 64);
+                memset(c.iv, 0, 16);
+                */
 
-            /* wipe password for security
-            memset(c.pwd, 0, 64);
-            memset(c.iv, 0, 16);
-            */
+                // move cursore back one entry
+                fseek(file, -sizeof(Credential), SEEK_CUR);
 
-            // move cursore back one entry
-            fseek(file, -sizeof(Credential), SEEK_CUR);
-
-            //overwrite
-            fwrite(&c, sizeof(Credential), 1, file);
-            
-            printf("deleted entry for site: %s, user: %s\n", c.site, c.usr);
-            deleted = true;
-            break; // Stop after deleting one
+                //overwrite
+                fwrite(&c, sizeof(Credential), 1, file);
+                
+                printf("deleted entry for site: %s, user: %s\n", c.site, c.usr);
+                deleted = true;
+                return; // Stop after deleting one
+            }  
         }
     }
 

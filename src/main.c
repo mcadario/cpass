@@ -25,19 +25,25 @@ int main(int argc, char* argv[]) {
             print_usage(argv[1]);
             return 1;
         }   
-        read_pwd();
+        read_pwd(false);
     } else if (strcmp(argv[1], "find")==0) {
         if (argc != 3){
             print_usage(argv[1]);
             return 1;
         }
-        find_pwd(argv[2], true);
+        find_pwd(argv[2], true, false);
     } else if (strcmp(argv[1], "delete")==0) {
         if (argc != 3){
             print_usage(argv[1]);
             return 1;
         }
         del_pwd(argv[2]);
+    } else if (strcmp(argv[1], "bin")==0) {
+        if (argc != 2){
+            print_usage(argv[1]);
+            return 1;
+        }
+        read_pwd(true);
     } else {
         print_usage(""); //call it with empty str so that it will fall in the else case
     }
