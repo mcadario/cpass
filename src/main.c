@@ -1,52 +1,71 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "./cpass.h" 
+#include "./cpass.h"
 
-int main(int argc, char* argv[]) {
+// cmd handler
+typedef int (*cmd_handler_t)(int argc, char *argv[]);
 
-    // printf("%d", argc);
-    
-    //printf("\n1. Add Password\n2. View Passwords\n3. Exit\nChoice: ");
-    //scanf("%d", &choice);
-    if(argc < 2) {
+// cmd structure
+typedef struct {
+    const char *name;
+    int required_argc; 
+    cmd_handler_t handler;
+} command_t;
+
+// handlers
+static int handle_add(int argc, char *argv[]) {
+    save_pwd(argv[2], argv[3], argv[4]);
+    return 0;
+}
+
+static int handle_list(int argc, char *argv[]) {
+    read_pwd(false);
+    return 0;
+}
+
+static int handle_find(int argc, char *argv[]) {
+    find_pwd(argv[2], true, false);
+    return 0;
+}
+
+static int handle_delete(int argc, char *argv[]) {
+    del_pwd(argv[2]);
+    return 0;
+}
+
+static int handle_bin(int argc, char *argv[]) {
+    read_pwd(true);
+    return 0;
+}
+
+// dispatch table
+static const command_t commands[] = {
+    {"add",    5, handle_add},
+    {"list",   2, handle_list},
+    {"find",   3, handle_find},
+    {"delete", 3, handle_delete},
+    {"bin",    2, handle_bin},
+    {NULL,     0, NULL}  // "else" case
+};
+
+int main(int argc, char *argv[]) {
+    atexit(cleanup_session);
+
+    if (argc < 2) {
         print_usage("");
         return 0;
     }
 
-    if (strcmp(argv[1], "add")==0){
-        if (argc != 5) {
-            print_usage(argv[1]);
-            return 1;
-        }      
-        save_pwd(argv[2], argv[3], argv[4]);
-    } else if (strcmp(argv[1], "list")==0) {
-        if (argc != 2) {
-            print_usage(argv[1]);
-            return 1;
-        }   
-        read_pwd(false);
-    } else if (strcmp(argv[1], "find")==0) {
-        if (argc != 3){
-            print_usage(argv[1]);
-            return 1;
+    // search the dispatch table
+    for (const command_t *cmd = commands; cmd->name != NULL; cmd++) {
+        if (strcmp(argv[1], cmd->name) == 0) {
+            if (argc != cmd->required_argc) {
+                print_usage(argv[1]);
+                return 1;
+            }
+            return cmd->handler(argc, argv);
         }
-        find_pwd(argv[2], true, false);
-    } else if (strcmp(argv[1], "delete")==0) {
-        if (argc != 3){
-            print_usage(argv[1]);
-            return 1;
-        }
-        del_pwd(argv[2]);
-    } else if (strcmp(argv[1], "bin")==0) {
-        if (argc != 2){
-            print_usage(argv[1]);
-            return 1;
-        }
-        read_pwd(true);
-    } else {
-        print_usage(""); //call it with empty str so that it will fall in the else case
     }
 
+    // if unknown command
+    print_usage("");
     return 0;
 }

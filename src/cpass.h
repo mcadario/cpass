@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -31,6 +32,8 @@ typedef struct {
 } Credential;
 
 // prototypes
+
+void cleanup_session();
 
 void print_usage(char *cmd);
 /*

@@ -14,21 +14,22 @@ uint8_t SESSION_KEY[32]; // temp key for aes that exists in RAM only
 
 void print_usage(char *cmd){
     if (strcmp(cmd, "add")==0)
-        printf("Usage: cpass add <site> <username> <password>\n");
+        printf("Usage: cpass add <site> <username> <password> \t\t ADD PASSWORD\n");
     else if (strcmp(cmd, "list")==0)
-        printf("Usage: cpass list [no parameters[] \n");
+        printf("Usage: cpass list [no parameters[]\t\t LIST ALL PASSWORD \n");
     else if (strcmp(cmd, "find")==0)
-        printf("Usage: cpass find <site> \n");
+        printf("Usage: cpass find <site> \t\t FIND A PASSWORD\n");
     else if (strcmp(cmd, "delete")==0)
-        printf("Usage: cpass delete <site> \n");
+        printf("Usage: cpass delete <site>\t\t DELETE A PASSWORD \n");
     else if (strcmp(cmd, "bin")==0)
-        printf("Usage: cpass bin \n");
+        printf("Usage: cpass bin [no parameters] \t\t LIST DELETED PASSWORDS \n");
     else {
         printf(" -- COMMANDS --\n");
         print_usage("add");
         print_usage("list");
         print_usage("find");
         print_usage("delete");
+        print_usage("bin");
     }
 }
 
@@ -37,6 +38,10 @@ void toggle_xor(char *str) {
     for (int i = 0; i < strlen(str); i++) {
         str[i] = str[i] ^ KEY;
     }
+}
+
+void cleanup_session() {
+    bzero(SESSION_KEY, sizeof(SESSION_KEY));
 }
 
 void get_path(char *filename, char *output_buffer) {
@@ -250,12 +255,13 @@ int find_pwd(char *site, bool verbose, bool check_del) { // if check del is true
         }
     }
 
-    if(verbose)
+    if(verbose){
         if (count_found == 0) {
             printf("ERROR: No passwords found for %s\n", site);
         } else {
             printf("Total found: %d\n", count_found);
         }
+    }
 
     fclose(file);
     return count_found;
@@ -397,7 +403,13 @@ bool master_auth() {
         trim(input);
 
         // random salt
-        for (int i = 0; i < SALT_SIZE; i++) salt[i] = rand() % 256;
+        // for (int i = 0; i < SALT_SIZE; i++) salt[i] = rand() % 256;
+        FILE *f = fopen("/dev/urandom", "rb");
+        if (!f || fread(salt, 1, 16, f) != 16) {
+            printf("ERROR: failed to generate IV\n");
+            exit(1);
+        }
+        fclose(f);
 
         // compute hash
         char hex_hash[HEX_HASH_SIZE];
@@ -446,14 +458,17 @@ bool master_auth() {
         return true; // they coincide
     } else {
         printf("ERROR: wrong master pwd\n");
-        memset(SESSION_KEY, 0, 32); // wipe key
         return false;
     }
 }
 
 void generate_iv(uint8_t *iv) {
-    // random iv bytes
-    for(int i=0; i<16; i++) iv[i] = rand() % 256; 
+    FILE *f = fopen("/dev/urandom", "rb");
+    if (!f || fread(iv, 1, 16, f) != 16) {
+       printf("ERROR: failed to generate IV\n");
+       exit(1);
+    }
+    fclose(f);
 }
 
 
