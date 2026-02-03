@@ -9,7 +9,7 @@
 
 //the salt is hardcoded which doesn't make this program completely secure for multi-user environments.
 //but since this tool is thought to be single-user only, it should be ok i guess :)))
-uint8_t ENC_SALT[16] = { 'S','T','A','T','I','C','_','S','A','L','T','_','K','E','Y','!' };
+// uint8_t ENC_SALT[16] = { 'S','T','A','T','I','C','_','S','A','L','T','_','K','E','Y','!' };
 uint8_t SESSION_KEY[32]; // temp key for aes that exists in RAM only
 
 void print_usage(char *cmd){
@@ -384,80 +384,103 @@ void trim(char *str) {
 //char enc_hex[HEX_HASH_SIZE];
 
 //uses argon2
+
 bool master_auth() {
     char path[256];
     get_path(MASTER_FILE, path);
-    FILE *f = fopen(path, "rb"); // open in binary mode
+    FILE *f = fopen(path, "rb");
     char input[100];
-    char stored_hex_hash[HEX_HASH_SIZE];
-    uint8_t salt[SALT_SIZE];
-    uint8_t raw_hash[HASH_SIZE]; // temp buffer for raw bytes
+    char stored_hex_hash[HEX_HASH_BUFFER];
+    uint8_t auth_salt[SALT_SIZE];     //salt for authentication
+    uint8_t enc_salt[ENC_SALT_SIZE];  //salt for encryption key derivation
+    uint8_t raw_hash[HASH_SIZE];
 
-    srand(time(NULL)); //seed random generator
-
-    // if first run create new master key
+    // first run
     if (f == NULL) {
         printf("CREATE MASTER KEY:\n");
         printf("set your master pwd (NOT CHANGEABLE): ");
         if (!fgets(input, sizeof(input), stdin)) return 0;
         trim(input);
 
-        // random salt
-        // for (int i = 0; i < SALT_SIZE; i++) salt[i] = rand() % 256;
-        FILE *f = fopen("/dev/urandom", "rb");
-        if (!f || fread(salt, 1, 16, f) != 16) {
-            printf("ERROR: failed to generate IV\n");
-            exit(1);
+        // random auth salt
+        FILE *urandom = fopen("/dev/urandom", "rb");
+        if (!urandom || fread(auth_salt, 1, SALT_SIZE, urandom) != SALT_SIZE) {
+            printf("CRITICAL: Failed to generate secure salt\n");
+            if (urandom) fclose(urandom);
+            return 0;
         }
-        fclose(f);
+        
+        // random encryption salt
+        if (fread(enc_salt, 1, ENC_SALT_SIZE, urandom) != ENC_SALT_SIZE) {
+            printf("CRITICAL: Failed to generate encryption salt\n");
+            fclose(urandom);
+            return 0;
+        }
+        fclose(urandom);
 
-        // compute hash
-        char hex_hash[HEX_HASH_SIZE];
-        compute_argon2(input, salt, raw_hash);
+        // authentication hash
+        char hex_hash[HEX_HASH_BUFFER];
+        compute_argon2(input, auth_salt, raw_hash);
         to_hex(raw_hash, hex_hash, HASH_SIZE);
 
-        // save salt+hash, we'll need both later
+        // save auth_salt + enc_salt + hash
         f = fopen(path, "wb");
-        fwrite(salt, 1, SALT_SIZE, f);
-        fwrite(hex_hash, 1, HEX_HASH_SIZE, f); 
+        if (!f) {
+            printf("ERROR: Cannot create master key file\n");
+            return 0;
+        }
+        fwrite(auth_salt, 1, SALT_SIZE, f);
+        fwrite(enc_salt, 1, ENC_SALT_SIZE, f);  //store encryption salt
+        fwrite(hex_hash, 1, HEX_HASH_SIZE, f);
         fclose(f);
 
         printf("Master Password Set!\n");
-        memset(input, 0, sizeof(input));
         print_usage("");
-        return true;
+        return 0;
     }
 
-    //normal login
+    // Normal login - read auth_salt, enc_salt, and hash
+    if (fread(auth_salt, 1, SALT_SIZE, f) != SALT_SIZE) {
+        printf("Error reading key file (auth salt).\n");
+        fclose(f);
+        return 0;
+    }
     
-    // read salt and hash
-    if (fread(salt, 1, SALT_SIZE, f) != SALT_SIZE) {
-        printf("Error reading key file (salt).\n"); fclose(f); return 0;
+    // read encryption salt
+    if (fread(enc_salt, 1, ENC_SALT_SIZE, f) != ENC_SALT_SIZE) {
+        printf("Error reading key file (enc salt).\n");
+        fclose(f);
+        return 0;
     }
-    if (fread(stored_hex_hash, 1, HEX_HASH_SIZE, f) != HEX_HASH_SIZE) {
-        printf("Error reading key file (hash).\n"); fclose(f); return 0;
+    
+    if (fread(stored_hex_hash, 1, HEX_HASH_BUFFER, f) != HEX_HASH_SIZE) {
+        printf("Error reading key file (hash).\n");
+        fclose(f);
+        return 0;
     }
+
+    stored_hex_hash[HEX_HASH_SIZE] = '\0';  //null terminator after reading
     fclose(f);
 
-    // ask for master pwd
+    // authentication
     printf("enter master pwd: ");
     if (!fgets(input, sizeof(input), stdin)) return 0;
     trim(input);
 
-    //compute key for aes
-    //uses the hardcoded ENC_SALT and writes raw bytes to SESSION_KEY
-    compute_argon2(input, ENC_SALT, SESSION_KEY);
+    // compute encryption key using enc_salt
+    compute_argon2(input, enc_salt, SESSION_KEY);
 
-    // 3. re-compute hash
-    char current_hex_hash[HEX_HASH_SIZE];
-    compute_argon2(input, salt, raw_hash);
+    // authentication hash
+    char current_hex_hash[HEX_HASH_BUFFER];
+    compute_argon2(input, auth_salt, raw_hash);
     to_hex(raw_hash, current_hex_hash, HASH_SIZE);
 
-    // 4. compare the two hashes
+    // compare hashes
     if (strcmp(stored_hex_hash, current_hex_hash) == 0) {
-        return true; // they coincide
+        return true;
     } else {
         printf("ERROR: wrong master pwd\n");
+        cleanup_session();
         return false;
     }
 }

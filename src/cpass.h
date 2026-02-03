@@ -5,9 +5,12 @@
 #define FILENAME "passwords.bin" //path of password file
 #define KEY 0xF //weak key for XOR, kept for legacy toggle_xor1
 #define MASTER_FILE "master.key" //path of master key file
+#define ENC_SALT_SIZE 16
 #define SALT_SIZE 16
 #define HASH_SIZE 32
-#define HEX_HASH_SIZE (HASH_SIZE * 2) + 1 // 64 chars + null terminator
+#define HEX_HASH_SIZE (HASH_SIZE * 2)// 64 chars
+#define HEX_HASH_BUFFER (HEX_HASH_SIZE) +1 // 65 with null terminator
+
 
 #include <stdio.h>
 #include <stdlib.h>
