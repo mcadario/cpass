@@ -109,5 +109,4 @@ depending if you installed with make (1) or with the shell script (2).
 
 ## to be implemented
 - Memory locking with mlock()
-- Implement a non static salt
 - Vacuum function to definitely remove all "tombstoned" entries
